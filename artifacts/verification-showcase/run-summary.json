@@ -1,0 +1,37 @@
+{
+  "artifact_version": "1",
+  "purpose": "Curated, committed verification outputs for the Antislop technical showcase.",
+  "source_linked_theorem": {
+    "source": "examples/theorem_sample_repo/math_utils.py:square",
+    "engine": "Z3",
+    "integer_model": "unbounded mathematical integers",
+    "result": "proved",
+    "proofs": 2,
+    "findings": 0,
+    "artifacts": ["proofs.json", "findings.json", "theorem.log"]
+  },
+  "application_checks": [
+    {
+      "command": "PYTHONPATH=src .venv/bin/python -m pytest backend/tests -q",
+      "result": "passed",
+      "tests": 72
+    },
+    {
+      "command": "PYTHONPATH=src .venv/bin/python -m pytest -q",
+      "result": "passed",
+      "tests": 12
+    },
+    {
+      "command": "npm run check",
+      "result": "passed",
+      "scope": "browser JavaScript syntax"
+    },
+    {
+      "command": "npm test",
+      "result": "passed",
+      "tests": 29,
+      "scope": "prototype UI and live API adapter tests"
+    }
+  ],
+  "limits": "The theorem artifacts prove only the supported, source-linked expression subset. They do not prove arbitrary Python program behavior."
+}

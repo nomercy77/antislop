@@ -70,6 +70,10 @@ Antislop is designed to remove the repeatable bulk of review before it reaches a
 
 This changes the human task from “read everything and rediscover obvious failures” to higher-value work: define the right contract, challenge assumptions that the bounded model does not cover, add adversarial functional tests, interpret a solver counterexample, and judge product, security, and operational intent. When a restricted theorem is provable, the expert inherits the proof and its stated assumptions. When it is not, the expert inherits the recorded counterexample or failure evidence. The platform does not replace expert judgment; it gives experts a deterministic evidence base and reserves their time for the ambiguity that tools cannot honestly resolve.
 
+### Committed verification evidence
+
+The curated [verification showcase artifacts](artifacts/verification-showcase) make the technical claims inspectable in the repository. They include the normalized Z3 proof output for the source-linked `square()` example, its empty findings set, runner output, and the completed backend/core/UI test summary. The bundle intentionally excludes temporary queues, local user data, credentials, and exploratory failures; it is a compact review artifact, not a production evidence store.
+
 ## What is shipped
 
 | Capability | Python | JavaScript | What a passing result means |

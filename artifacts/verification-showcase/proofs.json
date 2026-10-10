@@ -1,0 +1,14 @@
+[
+  {
+    "id": "square_is_nonnegative",
+    "linked_source": true,
+    "message": "square_is_nonnegative: proved over unbounded mathematical integers with linked source expression",
+    "status": "proved"
+  },
+  {
+    "id": "square_matches_its_specification",
+    "linked_source": true,
+    "message": "square_matches_its_specification: proved over unbounded mathematical integers with linked source expression",
+    "status": "proved"
+  }
+]

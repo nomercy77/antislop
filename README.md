@@ -2,7 +2,7 @@
 
 Backend foundations for reproducible code verification of Python and JavaScript repositories.
 
-The first FastAPI slice accepts a GitHub repository pinned to a commit and resolves requested verification capabilities into versioned plugin runs. Syntax checks and configured tests are executable in Docker; the other capabilities are intentionally advertised as planned until their adapters exist.
+The FastAPI backend accepts a GitHub repository pinned to a commit and resolves requested verification capabilities into versioned plugin runs. Each supported check runs in an isolated Docker job, except an explicitly configured external agent-review provider.
 
 ## Run locally
 
@@ -43,6 +43,22 @@ Jobs are stored in `.antislop/antislop.sqlite3`; logs are retained under `.antis
 Each contract target declares a callable, explicit cases and/or finite parameter values, and optional JSON-safe assertions (`expected`, `type`, `minimum`, `maximum`, or `truthy`). Python targets use `module` and `function`; JavaScript targets use a repository-relative CommonJS `module` path and exported `function`. See [examples/contracts](examples/contracts).
 
 These are bounded/runtime results—not general proofs. A pass means all recorded cases and assertions held within the selected bounds.
+
+### Theorem proving (Python preview)
+
+`formal.theorem-proving` uses Z3 to prove declarative theorems over **unbounded mathematical integers**. Its intentionally small JSON DSL supports integer variables; `add`, `sub`, `mul`, and `neg` expressions; and `eq`, `ne`, `lt`, `le`, `gt`, `ge`, `and`, `or`, and `not` propositions. antislop proves each claim by checking that its assumptions plus the negated conclusion are unsatisfiable.
+
+Set `formal.theorem_path` to the repository-relative theorem file. A minimal submission fragment is:
+
+```json
+{
+  "languages": ["python"],
+  "capabilities": ["formal.theorem-proving"],
+  "formal": {"theorem_path": ".antislop/theorems.json"}
+}
+```
+
+See the runnable [sample repository](examples/theorem-repo) and its [theorem file](examples/theorem-repo/.antislop/theorems.json). The optional `source` field identifies the documented implementation, but this first engine does **not** translate arbitrary Python into Z3 or prove code/spec equivalence. A pass proves precisely the submitted integer theorem—not the correctness of unrelated implementation code.
 
 ## Agent review provider
 

@@ -29,6 +29,12 @@ def command_for(run: PluginRun, request: SubmissionCreate) -> list[str]:
             raise UnsupportedExecutablePluginError("formal configuration is required")
         mode = "bounded" if run.capability == Capability.FORMAL_BOUNDED else "contracts"
         return _contract_command(run.language, request.formal.contract_path, request.formal.max_cases, mode)
+    if run.capability == Capability.FORMAL_THEOREM_PROVING:
+        if request.formal is None:
+            raise UnsupportedExecutablePluginError("formal configuration is required")
+        if run.language != Language.PYTHON:
+            raise UnsupportedExecutablePluginError("theorem proving is currently available for Python only")
+        return ["python", "/opt/antislop/python_theorems.py", "--theorems", request.formal.theorem_path]
     raise UnsupportedExecutablePluginError(
         f"plugin '{run.plugin_id}' does not have an executable command for '{run.capability}'"
     )

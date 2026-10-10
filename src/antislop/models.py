@@ -24,6 +24,7 @@ class Capability(StrEnum):
     FORMAL_TYPE_SAFETY = "formal.type-safety"
     FORMAL_BOUNDED = "formal.bounded"
     FORMAL_CONTRACTS = "formal.contracts"
+    FORMAL_THEOREM_PROVING = "formal.theorem-proving"
     AGENT_REVIEW = "agent-review"
 
 
@@ -111,16 +112,21 @@ class SubmissionCreate(BaseModel):
     def require_tests_for_test_capability(self) -> "SubmissionCreate":
         if Capability.TESTS in self.capabilities and not self.test_commands:
             raise ValueError("test_commands are required when the tests capability is selected")
-        formal_capabilities = {Capability.FORMAL_BOUNDED, Capability.FORMAL_CONTRACTS}
+        formal_capabilities = {
+            Capability.FORMAL_BOUNDED,
+            Capability.FORMAL_CONTRACTS,
+            Capability.FORMAL_THEOREM_PROVING,
+        }
         if self.capabilities & formal_capabilities and self.formal is None:
             raise ValueError("formal configuration is required for bounded and contract verification")
         return self
 
 
 class FormalConfiguration(BaseModel):
-    """A restricted, JSON-only runtime-contract specification for the first release."""
+    """Paths and limits for the restricted formal-verification specifications."""
 
     contract_path: str = ".antislop/contracts.json"
+    theorem_path: str = ".antislop/theorems.json"
     max_cases: int = Field(default=100, ge=1, le=10_000)
 
     @field_validator("contract_path")
@@ -128,6 +134,13 @@ class FormalConfiguration(BaseModel):
     def require_relative_contract_path(cls, value: str) -> str:
         if value.startswith("/") or ".." in value.split("/"):
             raise ValueError("contract_path must be relative and cannot contain '..'")
+        return value
+
+    @field_validator("theorem_path")
+    @classmethod
+    def require_relative_theorem_path(cls, value: str) -> str:
+        if value.startswith("/") or ".." in value.split("/"):
+            raise ValueError("theorem_path must be relative and cannot contain '..'")
         return value
 
 

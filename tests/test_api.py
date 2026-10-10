@@ -85,11 +85,16 @@ def test_accepts_all_executable_capabilities_with_formal_configuration() -> None
         "formal.type-safety",
         "formal.bounded",
         "formal.contracts",
+        "formal.theorem-proving",
         "agent-review",
     ]
-    payload["formal"] = {"contract_path": "verification/contracts.json", "max_cases": 12}
+    payload["formal"] = {
+        "contract_path": "verification/contracts.json",
+        "theorem_path": "verification/theorems.json",
+        "max_cases": 12,
+    }
 
     response = client.post("/v1/submissions", json=payload)
 
     assert response.status_code == 201
-    assert len(response.json()["plan"]["runs"]) == 6
+    assert len(response.json()["plan"]["runs"]) == 7

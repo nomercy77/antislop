@@ -65,6 +65,16 @@ def built_in_registry() -> PluginRegistry:
     )
     registry.register(
         PluginManifest(
+            id="builtin.theorem-proving",
+            version="0.1.0",
+            languages={Language.PYTHON},
+            capabilities={Capability.FORMAL_THEOREM_PROVING},
+            state=PluginState.READY,
+            config_schema={"formal.theorem_path": "repository-relative Z3 theorem specification"},
+        )
+    )
+    registry.register(
+        PluginManifest(
             id="builtin.agent-review",
             version="0.1.0",
             languages=ALL_LANGUAGES,

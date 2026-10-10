@@ -1,0 +1,152 @@
+/* Web-focused Apple-inspired polish: clarity, legibility, and restraint.
+   Keep Antislop's existing forest-green brand and dashboard proportions.
+   Measured ordinary text contrast is >= 4.5:1 on the named surfaces. */
+:root {
+  --muted: #586755;
+  --focus: #174c36;
+  --control-border: #7a8974;
+}
+
+body { line-height: 1.5; }
+button, input, select, textarea { touch-action: manipulation; }
+button, a, input, select, textarea { outline-offset: 4px; }
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 2px #fff;
+}
+input, textarea, select { border-color: var(--control-border); }
+input::placeholder, textarea::placeholder { color: #586755; opacity: 1; }
+.secondary, .role-card { border-color: var(--control-border); }
+.btn {
+  min-height: 44px;
+  transition: background-color .15s, border-color .15s, box-shadow .15s,
+    color .15s, opacity .15s, transform .15s;
+}
+.icon-btn { min-width: 44px; min-height: 44px; }
+.text-btn { min-height: 36px; font-size: 13px; }
+.check-label { align-items: flex-start; font-size: 13px; }
+.check-label input { flex: 0 0 18px; width: 18px; height: 18px; padding: 0; }
+
+/* Supporting copy was frequently 8–11px and pale gray. Increase it without
+   enlarging decorative initials, code art, or the entire dashboard. */
+.demo-strip, .demo-strip button,
+.workspace-pill, .workspace-pill strong, .account strong, .account small,
+.nav button, .sidebar-tip p, .sidebar-tip button,
+.heading-copy p, .hero p, .hero .btn,
+.stat-top, .stat-bottom, .panel-head p, .tabs button,
+td, .repo-cell strong, .repo-cell small,
+.table-footer, .table-footer .text-btn,
+.reviewer-item strong, .reviewer-item small, .reviewer-price,
+.reviewer-price small, .panel-bottom .btn,
+.activity-item p, .activity-item small,
+.chart-summary p, .chart-labels, .page-footer,
+.field small, .steps .step, .access-step p, .access-step .btn,
+.detail-content p, .kv, .finding code,
+.auth-form > p, .auth-foot, .role-card small, .or,
+.thread small, .chat-compose input,
+.verification-item p, .date-label,
+.journey strong, .journey p, .text-small,
+.repository-card > p, .repository-card .kv, .repository-card .kv strong,
+.review-meta > span:not(.tag), .wrap-text,
+.chat-head p, .bubble small, .message-demo-note,
+.landing-flow p {
+  font-size: 13px;
+}
+.tag, .expert-name .tag, .chart-summary .tag,
+.tabs button span, .nav .count { font-size: 12px; }
+th, .nav-label, .eyebrow { font-size: 11px; }
+.sidebar-tip h4, .access-step h4, .finding-head h4,
+.role-card strong, .bubble strong { font-size: 13px; }
+.activity-item p, .journey p, .field small { line-height: 1.6; }
+
+/* Muted text #586755: 6.02:1 on white, 5.64:1 on --bg, and
+   5.31:1 on the demo strip. Preserve light-on-green hero copy. */
+.demo-strip, .breadcrumb, .role-switch,
+.nav-label, .nav button, .sidebar-tip p,
+.eyebrow, .heading-copy p, .stat-top, .stat-bottom,
+.panel-head p, .tabs button, th, .repo-cell small,
+.table-footer, .activity-item small, .chart-labels, .chart-summary p,
+.page-footer, .expert-card .bio, .section-title p,
+.detail-content p, .kv span:first-child, .access-step p,
+.empty, .modal-head p, .auth-form > p, .auth-foot, .or,
+.profile-banner p, .verification-item p, .date-label,
+.journey p, .repository-card > p, .review-meta > span:not(.tag),
+.chat-head p, .message-demo-note, .landing-hero p, .landing-flow p {
+  color: #586755;
+}
+.hero .eyebrow { color: #c2d9b4; }
+.hero p { color: #bfd0be; }
+.stat-bottom span { color: #426439; }
+.tag { color: #52614f; }
+.tag.green { color: #315b37; }
+.tag.amber { color: #805413; }
+.tag.blue { color: #3c617e; }
+.tag.red { color: #99483e; }
+.landing-flow .tag { color: #496636; }
+.tabs button span { color: #426439; }
+.nav button.active, .tabs button.active, .step.active { color: var(--green); }
+.step:not(.active) { color: #586755; }
+.role-switch { font-size: 12px; min-height: 40px; }
+.demo-strip { height: auto; min-height: 31px; padding-block: 4px; line-height: 1.4; }
+.demo-strip button { min-height: 24px; }
+
+/* Non-text control boundaries #7a8974 against white: 3.71:1.
+   Status label ratios: neutral 5.96, green 7.01, amber 6.03,
+   blue 5.92, red 5.57. Decorative panel borders are unchanged. */
+.sidebar { overflow-y: auto; }
+.sidebar > * { flex-shrink: 0; }
+.heading-copy, .panel-head > div, .reviewer-item > div,
+.expert-footer, .chat-head > div { min-width: 0; }
+.dashboard-grid > *, .detail-grid > *, .stats > *, .cards > *,
+.messages-grid > *, .panel { min-width: 0; }
+.heading-copy, .reviewer-item strong, .chat-head, .kv strong,
+.notice span, .profile-banner p { overflow-wrap: anywhere; }
+.form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.form-grid .field { min-width: 0; }
+.table-scroll { max-width: 100%; overscroll-behavior-x: contain; }
+.tabs { max-width: 100%; overflow-x: auto; }
+.tabs button { min-height: 44px; }
+.journey { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.panel-bottom .btn { white-space: normal; }
+.modal { overscroll-behavior: contain; }
+#toast { transition: opacity .2s, transform .2s; }
+
+@media (max-width: 720px) {
+  .btn, .text-btn, .nav button, .role-switch,
+  .auth-foot button, .demo-strip button { min-height: 44px; }
+  .demo-strip { flex-wrap: wrap; padding-inline: 12px; gap: 2px 8px; }
+  .sidebar { top: 0; height: 100vh; height: 100dvh; }
+  .page-heading { flex-wrap: wrap; }
+  .heading-actions { flex-wrap: wrap; }
+  .heading-actions .btn { font-size: 13px; }
+  .heading-copy p, .page-footer { font-size: 13px; }
+  .page-footer { flex-wrap: wrap; gap: 12px; }
+  .page-footer span { min-width: 0; }
+  .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .journey { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .journey article, .journey > div { min-width: 0; }
+  .topbar { height: auto; min-height: 65px; padding-block: 8px; }
+  .top-actions { gap: 4px; min-width: 0; }
+  .role-switch { max-width: 180px; }
+  .chat-compose { flex-wrap: wrap; }
+  .chat-compose input { min-width: 0; flex: 1 1 160px; }
+  .bubble { max-width: 100%; }
+  .chart-row { flex-wrap: wrap; }
+  .chart-summary { width: auto; }
+  .modal-backdrop { padding: 12px; }
+  .modal { max-height: calc(100dvh - 24px); }
+  .form-actions > small { max-width: 100%; }
+  .role-card { padding: 15px 12px; }
+  .hero .btn { white-space: normal; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .btn:hover { transform: none; }
+}

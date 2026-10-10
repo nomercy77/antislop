@@ -1,10 +1,10 @@
 # antislop
 
-**Verification infrastructure for agent-written code.** antislop takes a GitHub repository pinned to an immutable commit, turns a requested review level into versioned verification runs, and returns findings with reproducible evidence.
+**Evidence-first code verification for the age of AI-generated software.** antislop turns a GitHub repository pinned to an immutable commit into a review workflow that combines programmatic checks, bounded mathematical claims, agent review, and accountable human expertise.
 
-It is built for the uncomfortable gap between “an agent produced code that looks plausible” and “we have evidence that this change is safe enough to merge.” The platform combines deterministic checks, bounded contracts, solver-backed theorem checks, and a separately configured agent-review boundary. Human experts can later build on the same evidence trail rather than starting from a blank page.
+AI can produce a plausible patch in seconds; proving that it is safe, complete, and aligned with the intended behavior is the hard part. antislop is built to clean up that gap. Instead of a generic “looks good” verdict, it separates what was parsed, analyzed, executed, bounded, contract-checked, solver-proved, or reviewed by a verified expert—and retains the evidence for each claim.
 
-> Hackathon scope: this repository contains the verification backend only. Product UI, identity, bounty workflow, expert credentials, and payments are deliberately out of this slice; their integration shape is documented in [ARCHITECTURE.md](ARCHITECTURE.md).
+The repository contains both the modular verification engine and the FastAPI-backed product workflow: authenticated submitter, coder/doer, and verification-staff workspaces; pinned review creation; durable verification jobs; expert assignment; and structured expert delivery. Payments, GitHub App grants, and public deployment are intentionally still mock or configuration-dependent boundaries, never silently represented as complete.
 
 ## Why antislop
 
@@ -15,6 +15,54 @@ Agent-written code changes the review bottleneck: generating a patch is cheap, b
 - **Isolation before execution:** the API plans work; a Docker worker runs untrusted repository code outside the API process.
 - **Honest assurance labels:** syntax, static findings, bounded contracts, and theorem proofs are different claims. The result tells you which one you received.
 - **Human/agent continuity:** automated evidence is structured so an expert task or agent review can cite it directly.
+
+## From AI code to a defensible merge decision
+
+```text
+GitHub URL + immutable commit SHA
+              |
+              v
+   automated evidence plan (selected assurance level)
+              |
+      +-------+--------+----------------+
+      |                |                |
+      v                v                v
+ static / AST      contracts &       configured
+ type analysis     bounded checks    agent review
+                       |
+                       v
+                restricted Z3 proof
+                where applicable
+                       |
+                       v
+      evidence, claims, counterexamples, attestations
+                       |
+                       v
+      verified expert: tests, contracts, or full review
+                       |
+                       v
+            merge decision with an audit trail
+```
+
+antislop is not trying to pretend that one tool can “verify code.” It composes layers with explicit scope:
+
+| Layer | What it contributes | What it deliberately does not claim |
+| --- | --- | --- |
+| Syntax, static analysis, AST/CFG and type checks | Fast, deterministic signals for broken structure, dangerous patterns, reachable control-flow concerns, and declared type inconsistencies. | That the program meets its full business specification. |
+| Sandboxed tests and runtime contracts | Executable evidence for specified cases, pre/postconditions, and regressions under recorded bounds. | A universal proof beyond the executed cases and supported contract model. |
+| Theorem proving preview | Z3-backed proofs for a restricted, source-linked Python integer-expression subset; solver counterexamples are retained when a theorem fails. | Proof of arbitrary Python or JavaScript programs, heap behavior, imports, exceptions, or unmodeled runtime semantics. |
+| Agent review | Structured findings from an explicitly configured provider, attached to the same pinned source and evidence record. | An independent mathematical proof or an unconfigured model response. |
+| Verified human review | Functional tests, formal contracts, or manual code review delivered by an approved expert against the same immutable revision. | Automatic GitHub access, payment, or identity proof beyond the platform’s current verification process. |
+
+## Product workflow
+
+1. **Submit a review:** a code owner supplies a GitHub repository, a full 40-character commit SHA, scope, language, assurance level, and optionally an expert deliverable.
+2. **Plan and queue verification:** FastAPI validates the request, builds a versioned capability plan, persists it, and queues the work without running untrusted code in the API process.
+3. **Execute in a constrained worker:** the worker checks out the requested revision and runs only selected plugin capabilities inside language-specific Docker runners.
+4. **Make results inspectable:** the review shows planned and completed runs, findings, assurance claims, artifacts, and integrity attestation rather than a single opaque score.
+5. **Escalate with context:** an approved coder can be assigned to write functional tests, formal contracts, or a manual full review. Their structured delivery stays attached to the same review record.
+
+Expert work is tiered, server-priced, and optional: functional tests ($75/$150), formal contracts ($150/$300), and manual review ($100/$250) for standard/deep scope. These are mock commercial terms today—no charge, escrow, or payout is executed—but the authorization and delivery lifecycle is real application state.
 
 ## What is shipped
 

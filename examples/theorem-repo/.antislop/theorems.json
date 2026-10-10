@@ -1,0 +1,26 @@
+{
+  "theorems": [
+    {
+      "id": "square_is_nonnegative",
+      "source": {"path": "math_utils.py", "symbol": "square"},
+      "variables": {"value": "int"},
+      "assumptions": [],
+      "conclusion": {
+        "op": "ge",
+        "left": {"op": "mul", "args": [{"var": "value"}, {"var": "value"}]},
+        "right": {"int": 0}
+      }
+    },
+    {
+      "id": "adding_zero_is_identity",
+      "source": {"path": "math_utils.py", "symbol": "square"},
+      "variables": {"value": "int"},
+      "assumptions": [],
+      "conclusion": {
+        "op": "eq",
+        "left": {"op": "add", "args": [{"var": "value"}, {"int": 0}]},
+        "right": {"var": "value"}
+      }
+    }
+  ]
+}

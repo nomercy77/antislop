@@ -1,0 +1,11 @@
+{
+  "name": "antislop-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/preview.mjs",
+    "check": "node scripts/check.mjs",
+    "test": "node scripts/test-ui.mjs && node scripts/test-api.mjs"
+  }
+}

@@ -54,7 +54,8 @@ def login(client, mailer, email="submitter@example.com", role="submitter"):
 def review_payload():
     return {"title": "Tenant boundary review", "repo": "https://github.com/example/private-app", "sha": "a" * 40,
             "stack": "TypeScript", "scope": "Verify tenant boundaries in all resource handlers.", "budget": 500,
-            "deadline": "2026-12-01", "visibility": "private"}
+            "deadline": "2026-12-01", "visibility": "private",
+            "expert_work": {"kind": "manual-review", "tier": "standard"}}
 
 
 def application_payload():
@@ -86,6 +87,8 @@ def test_review_creation_queues_a_pinned_verification_plan(service):
     assert created.status_code == 201
     body = created.json()
     assert body["review"]["verificationSubmissionId"]
+    assert body["review"]["expertWork"] == {"kind": "manual-review", "tier": "standard", "price": 100,
+                                            "status": "requested", "deliverySummary": None, "deliveryUrl": None}
     assert body["verification"]["status"] == "queued"
     assert {run["capability"] for run in body["verification"]["plan"]["runs"]} == {
         "syntax", "static-analysis", "ast-cfg", "formal.type-safety"
@@ -244,7 +247,12 @@ def test_review_private_access_assignment_messages_and_unconfigured_grants(servi
         assert opportunity["id"] == rid and "repo" not in opportunity and "scope" not in opportunity
         assigned = owner.post(f"/api/reviews/{rid}/assign", json={"reviewer_id": coder_user["id"]})
         assert assigned.json()["review"]["expertId"] == coder_user["id"]
+        assert assigned.json()["review"]["expertWork"]["status"] == "assigned"
         assert coder.get(f"/api/reviews/{rid}").status_code == 200
+        delivered = coder.post(f"/api/reviews/{rid}/expert-delivery", json={"summary": "Reviewed all tenant boundaries and added a regression test plan.", "artifact_url": "https://example.com/deliveries/tenant-review"})
+        assert delivered.status_code == 200
+        assert delivered.json()["review"]["expertWork"]["status"] == "completed"
+        assert delivered.json()["review"]["expertWork"]["deliveryUrl"] == "https://example.com/deliveries/tenant-review"
         assert coder.post(f"/api/reviews/{rid}/assign", json={"reviewer_id": outsider_user["id"]}).status_code == 403
         access = owner.post(f"/api/reviews/{rid}/access-request", json={"target": "reviewer"}).json()
         assert access["recipient"] == coder_user["email"] and access["status"] == "pending"

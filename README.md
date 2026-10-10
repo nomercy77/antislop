@@ -148,6 +148,18 @@ npm run dev
 
 Set `apiBaseUrl` in `dist/config.js` to `http://127.0.0.1:8000`, configure `.env` from `.env.example`, then run `antislop-worker --database-path .antislop/antislop.sqlite3`. The review detail page shows the queued plan and assurance claims; the authenticated API exposes the complete evidence at `GET /api/reviews/{review_id}/verification` to the submitter or assigned approved reviewer.
 
+### Human expert work, grounded in the automated evidence
+
+When creating a review, a submitter can request an optional human deliverable in addition to the selected automated checks. The API—not the browser—sets the fixed mock price and persists the exact request. Only approved coders can browse these opportunities, be assigned, view the private review, and submit a delivery summary plus an optional HTTPS artifact URL.
+
+| Deliverable | Standard | Deep |
+| --- | ---: | ---: |
+| Functional tests | $75 | $150 |
+| Formal contracts | $150 | $300 |
+| Full manual review | $100 | $250 |
+
+The coder dashboard shows assigned deliverables and their lifecycle (`requested → assigned → completed`). This is deliberately a payment-safe showcase: no card charge, escrow, payout, or GitHub permission is implied by assignment. Human reviewers receive the same pinned SHA and automated verification record, so tests, contracts, and review notes can refer to concrete evidence rather than an unpinned repository state.
+
 ## Submit and queue a verification plan
 
 Create a submission against a pinned commit. Replace the SHA and repository with the change you want to verify.

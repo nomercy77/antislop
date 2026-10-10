@@ -14,7 +14,7 @@ ROLE_PERMISSIONS = {
 }
 
 APPROVED_CODER_PERMISSIONS = (
-    "read_assigned_reviews", "browse_opportunities", "read_review_messages", "send_review_messages",
+    "read_assigned_reviews", "browse_opportunities", "read_review_messages", "send_review_messages", "submit_expert_delivery",
 )
 
 

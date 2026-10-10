@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS reviews (
  platform_access TEXT NOT NULL DEFAULT 'pending',
  reviewer_id TEXT REFERENCES users(id), reviewer_access TEXT NOT NULL DEFAULT 'pending',
  verification_submission_id TEXT,
+ expert_work_type TEXT, expert_work_tier TEXT, expert_work_price INTEGER NOT NULL DEFAULT 0,
+ expert_work_status TEXT NOT NULL DEFAULT 'not-requested', expert_delivery_summary TEXT, expert_delivery_url TEXT,
  created_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS messages (
@@ -93,3 +95,12 @@ class Database:
                 conn.execute("ALTER TABLE reviews ADD COLUMN category TEXT NOT NULL DEFAULT 'general'")
             if "verification_submission_id" not in review_columns:
                 conn.execute("ALTER TABLE reviews ADD COLUMN verification_submission_id TEXT")
+            additions = {
+                "expert_work_type": "TEXT", "expert_work_tier": "TEXT",
+                "expert_work_price": "INTEGER NOT NULL DEFAULT 0",
+                "expert_work_status": "TEXT NOT NULL DEFAULT 'not-requested'",
+                "expert_delivery_summary": "TEXT", "expert_delivery_url": "TEXT",
+            }
+            for column, definition in additions.items():
+                if column not in review_columns:
+                    conn.execute(f"ALTER TABLE reviews ADD COLUMN {column} {definition}")

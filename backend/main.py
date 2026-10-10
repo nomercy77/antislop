@@ -104,6 +104,7 @@ class ReviewInput(InputModel):
     verification_languages: set[VerificationLanguage] = Field(default_factory=set)
     verification_capabilities: set[VerificationCapability] = Field(default_factory=set)
     formal: FormalConfiguration | None = None
+    expert_work: "ExpertWorkRequest | None" = None
 
     @field_validator("repo")
     @classmethod
@@ -119,6 +120,33 @@ class ReviewInput(InputModel):
 
 class AssignmentInput(InputModel):
     reviewer_id: str = Field(min_length=1, max_length=100)
+
+
+class ExpertWorkRequest(InputModel):
+    kind: Literal["functional-tests", "formal-contracts", "manual-review"]
+    tier: Literal["standard", "deep"]
+
+
+class ExpertDeliveryInput(InputModel):
+    summary: str = Field(min_length=20, max_length=10_000)
+    artifact_url: str | None = Field(default=None, max_length=2_000)
+
+    @field_validator("artifact_url")
+    @classmethod
+    def artifact_url_is_https(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        parsed = urlparse(value)
+        if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+            raise ValueError("artifact_url must be an HTTPS URL")
+        return value
+
+
+EXPERT_PRICING = {
+    "functional-tests": {"standard": 75, "deep": 150},
+    "formal-contracts": {"standard": 150, "deep": 300},
+    "manual-review": {"standard": 100, "deep": 250},
+}
 
 
 class AccessInput(InputModel):
@@ -145,6 +173,11 @@ def public_review(row) -> dict:
         "access": row["platform_access"], "expertId": row["reviewer_id"],
         "expertAccess": row["reviewer_access"], "findings": [], "proposals": [], "messages": [],
         "verificationSubmissionId": row["verification_submission_id"],
+        "expertWork": {
+            "kind": row["expert_work_type"], "tier": row["expert_work_tier"],
+            "price": row["expert_work_price"], "status": row["expert_work_status"],
+            "deliverySummary": row["expert_delivery_summary"], "deliveryUrl": row["expert_delivery_url"],
+        } if row["expert_work_type"] else None,
     }
 
 
@@ -509,10 +542,12 @@ def create_app(settings: Settings | None = None, *, mailer=None) -> FastAPI:
                 raise RuntimeError("verification submission could not be queued")
         except ValueError as error:
             raise HTTPException(422, f"Invalid verification request: {error}") from error
+        expert_price = EXPERT_PRICING[body.expert_work.kind][body.expert_work.tier] if body.expert_work else 0
+        expert_status = "requested" if body.expert_work else "not-requested"
         with request.app.state.db.connection(write=True) as conn:
             rate_limit(conn, "review-user", user["id"], 30, 3600, timestamp)
             record_rate(conn, "review-user", user["id"], timestamp)
-            conn.execute("INSERT INTO reviews(id,owner_id,title,repo,sha,stack,scope,budget,deadline,visibility,category,verification_submission_id,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)", (rid, user["id"], body.title, body.repo, body.sha, body.stack, body.scope, body.budget, body.deadline.isoformat(), body.visibility, body.category, str(submission.id), timestamp))
+            conn.execute("INSERT INTO reviews(id,owner_id,title,repo,sha,stack,scope,budget,deadline,visibility,category,verification_submission_id,expert_work_type,expert_work_tier,expert_work_price,expert_work_status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (rid, user["id"], body.title, body.repo, body.sha, body.stack, body.scope, body.budget, body.deadline.isoformat(), body.visibility, body.category, str(submission.id), body.expert_work.kind if body.expert_work else None, body.expert_work.tier if body.expert_work else None, expert_price, expert_status, timestamp))
             event(conn, user, "Review created and verification plan queued.", rid)
             row = conn.execute("SELECT * FROM reviews WHERE id=?", (rid,)).fetchone()
         return {"review": public_review(row), "verification": queued[0], "job": queued[1]}
@@ -545,7 +580,7 @@ def create_app(settings: Settings | None = None, *, mailer=None) -> FastAPI:
             approved = conn.execute("SELECT 1 FROM applications WHERE user_id=? AND status='approved'", (user["id"],)).fetchone()
             if not approved:
                 raise HTTPException(403, "Your coder application must be approved before viewing opportunities.")
-            rows = conn.execute("SELECT id,title,stack,budget,deadline,status,category FROM reviews WHERE reviewer_id IS NULL AND (? IS NULL OR category=?) ORDER BY created_at DESC LIMIT 200", (category, category)).fetchall()
+            rows = conn.execute("SELECT id,title,stack,budget,deadline,status,category,expert_work_type,expert_work_tier,expert_work_price FROM reviews WHERE reviewer_id IS NULL AND expert_work_type IS NOT NULL AND (? IS NULL OR category=?) ORDER BY created_at DESC LIMIT 200", (category, category)).fetchall()
         # Do not disclose private repo URLs or detailed briefs before assignment.
         return {"opportunities": [dict(row) for row in rows]}
 
@@ -561,12 +596,28 @@ def create_app(settings: Settings | None = None, *, mailer=None) -> FastAPI:
     def assign_review(rid: str, body: AssignmentInput, request: Request, user=Depends(current_user)):
         require_role(user, "submitter")
         with request.app.state.db.connection(write=True) as conn:
-            review_for(conn, rid, user, owner=True)
+            review = review_for(conn, rid, user, owner=True)
+            if not review["expert_work_type"]:
+                raise HTTPException(422, "Choose an expert deliverable before assigning a reviewer.")
             reviewer = conn.execute("SELECT u.id FROM users u JOIN applications a ON a.user_id=u.id WHERE u.id=? AND u.role='coder' AND a.status='approved'", (body.reviewer_id,)).fetchone()
             if not reviewer or reviewer["id"] == user["id"]:
                 raise HTTPException(422, "Choose a verified coder other than yourself.")
-            conn.execute("UPDATE reviews SET reviewer_id=?,reviewer_access='pending' WHERE id=?", (reviewer["id"], rid))
-            event(conn, user, "Verified coder selected. Their repository access is pending.", rid)
+            conn.execute("UPDATE reviews SET reviewer_id=?,reviewer_access='pending',expert_work_status='assigned' WHERE id=?", (reviewer["id"], rid))
+            event(conn, user, "Verified coder selected for the requested expert deliverable. Repository access is pending.", rid)
+            row = conn.execute("SELECT * FROM reviews WHERE id=?", (rid,)).fetchone()
+        return {"review": public_review(row)}
+
+    @application.post("/api/reviews/{rid}/expert-delivery")
+    def submit_expert_delivery(rid: str, body: ExpertDeliveryInput, request: Request, user=Depends(current_user)):
+        require_role(user, "coder")
+        with request.app.state.db.connection(write=True) as conn:
+            review = review_for(conn, rid, user)
+            if not review["expert_work_type"]:
+                raise HTTPException(409, "This review has no requested expert deliverable.")
+            if review["expert_work_status"] not in {"assigned", "in-progress"}:
+                raise HTTPException(409, "This expert deliverable is not ready for submission.")
+            conn.execute("UPDATE reviews SET status='Expert delivery submitted',expert_work_status='completed',expert_delivery_summary=?,expert_delivery_url=? WHERE id=?", (body.summary, body.artifact_url, rid))
+            event(conn, user, "Expert deliverable submitted for the requested review.", rid)
             row = conn.execute("SELECT * FROM reviews WHERE id=?", (rid,)).fetchone()
         return {"review": public_review(row)}
 

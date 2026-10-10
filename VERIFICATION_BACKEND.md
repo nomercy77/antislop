@@ -4,6 +4,10 @@
 
 Given a GitHub repository pinned to a commit, run selected verification work for Python and JavaScript and return reproducible evidence. A submitter chooses a verification level; an expert can add tests, review code, or author contracts.
 
+## Scope
+
+This document covers backend contracts, workers, plugins, and persisted evidence only. It does not define screens, workflows, or frontend state. A contributor can integrate a UI later against the capability catalog and request/result contracts below.
+
 ## Verification levels
 
 | Level | Automated work | Expert work |
@@ -11,9 +15,9 @@ Given a GitHub repository pinned to a commit, run selected verification work for
 | Baseline | Syntax/compile check, dependency and test discovery, configured tests | — |
 | Analysis | Static analysis plus AST/control-flow rules | Review findings when needed |
 | Expert review | Automated evidence supplied to the task | Code review or functional tests |
-| Contracts | Contract harness and bounded/property-style checks | Write or approve contracts and tests |
+| Formal checks | Type-safety, bounded checks, contract harnesses, and property-style checks | Write or approve contracts, bounds, and tests |
 
-The UI may group these levels into free, paid, and high-assurance offerings, but the backend schedules individual capabilities rather than pricing tiers.
+Pricing and UI may group these levels later, but the backend schedules individual capabilities rather than tiers.
 
 ## Submission contract
 
@@ -42,7 +46,9 @@ Initial plugin families:
 - `tests`: discover and run explicitly configured Python or JavaScript tests.
 - `static-analysis`: language-specific lint, type, dependency, and security checks.
 - `ast-cfg`: AST and control-flow rules; each rule emits locations and evidence.
-- `contracts`: execute versioned preconditions, postconditions, and invariants.
+- `formal.type-safety`: check Python annotations and JavaScript type declarations/annotations where present; report unsupported or dynamically untyped boundaries.
+- `formal.bounded`: explore declared or generated inputs/states within recorded bounds and emit counterexamples when found.
+- `formal.contracts`: execute versioned preconditions, postconditions, invariants, and property-style checks.
 - `agent-review`: produce a review draft grounded in the source snapshot and other evidence; it never closes a finding or marks a contract proved.
 
 The orchestrator resolves a requested capability into compatible plugins. It can run independent plugins in parallel, records every plugin version/configuration, and normalizes outputs into the existing `Finding` and `Artifact` records.
@@ -73,9 +79,9 @@ An agent may propose tests or contracts, but an expert must approve authored hig
 
 ## Contracts and formal-methods boundary
 
-For the first Python/JavaScript release, contracts are executable runtime checks: preconditions, postconditions, invariants, and generated/bounded inputs. A passing run means the contract held for the recorded inputs, environment, and bounds.
+The first Python/JavaScript release includes the formal checks that are already practical for dynamic languages: type-safety checks where type information exists, finite/bounded state or input exploration, and executable preconditions, postconditions, invariants, and properties. Each check records its supported language subset and concrete bounds. A passing run means the stated property held for the recorded assumptions, environment, and bounds.
 
-Later, the `contracts` plugin may add a restricted specification language and symbolic/proof backends. A verification report may call something *proved* only when it stores the exact contract, engine/tool version, assumptions, proof output, and unresolved gaps. Dynamic code outside the supported subset remains a bounded or runtime-verified result.
+The formal plugin family may later add restricted specifications and proof backends. A verification report may call something *proved* only when it stores the exact contract, engine/tool version, assumptions, proof output, and unresolved gaps. Dynamic code outside the supported subset remains a type-checked, bounded, or runtime-verified result.
 
 ## Minimal data additions
 
@@ -86,8 +92,8 @@ Add `VerificationPlan`, `PluginRun`, `ContractPackage`, and `ExpertTask` records
 1. Define the submission schema, capability selection, plugin manifest, plan resolver, and isolated-runner protocol.
 2. Ship Python/JavaScript syntax, configured tests, and one static-analysis plugin per language.
 3. Add normalized findings/evidence and remediation reruns at a new commit SHA.
-4. Add expert functional-test and code-review tasks.
-5. Add runtime contracts, then bounded/property checks; defer proof backends until the supported contract subset is explicit.
+4. Add type-safety, bounded, and runtime-contract plugins with explicit supported subsets and claim labels.
+5. Add expert functional-test and code-review tasks; defer proof backends until the supported contract subset is explicit.
 
 ## Success criteria for the first slice
 

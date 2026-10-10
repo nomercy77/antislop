@@ -34,6 +34,7 @@ class CaptureMailer:
 @pytest.fixture
 def service(tmp_path):
     settings = Settings(secret="test-only-" + "x" * 48, database_path=str(tmp_path / "test.sqlite3"),
+                        verification_database_path=str(tmp_path / "verification.sqlite3"),
                         smtp_host="mock.invalid", smtp_from="signin@example.com",
                         staff_emails=frozenset({"staff@example.com"}))
     mailer = CaptureMailer()
@@ -51,7 +52,7 @@ def login(client, mailer, email="submitter@example.com", role="submitter"):
 
 
 def review_payload():
-    return {"title": "Tenant boundary review", "repo": "https://github.com/example/private-app", "sha": "ab123cd",
+    return {"title": "Tenant boundary review", "repo": "https://github.com/example/private-app", "sha": "a" * 40,
             "stack": "TypeScript", "scope": "Verify tenant boundaries in all resource handlers.", "budget": 500,
             "deadline": "2026-12-01", "visibility": "private"}
 
@@ -74,6 +75,24 @@ def test_config_and_unconfigured_integrations_are_explicit(service):
     assert client.post(f"/api/reviews/{rid}/scan").status_code == 503
     assert client.post(f"/api/reviews/{rid}/github/grant").status_code == 503
     assert client.get(f"/api/reviews/{rid}").json()["review"]["access"] == "pending"
+
+
+def test_review_creation_queues_a_pinned_verification_plan(service):
+    _, client, mailer, _ = service
+    login(client, mailer)
+
+    created = client.post("/api/reviews", json=review_payload())
+
+    assert created.status_code == 201
+    body = created.json()
+    assert body["review"]["verificationSubmissionId"]
+    assert body["verification"]["status"] == "queued"
+    assert {run["capability"] for run in body["verification"]["plan"]["runs"]} == {
+        "syntax", "static-analysis", "ast-cfg", "formal.type-safety"
+    }
+    evidence = client.get(f"/api/reviews/{body['review']['id']}/verification")
+    assert evidence.status_code == 200
+    assert evidence.json()["submission"]["request"]["source"]["commit_sha"] == "a" * 40
 
 
 def test_otp_delivery_session_storage_and_replay(service):

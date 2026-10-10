@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS reviews (
  status TEXT NOT NULL DEFAULT 'Awaiting access',
  platform_access TEXT NOT NULL DEFAULT 'pending',
  reviewer_id TEXT REFERENCES users(id), reviewer_access TEXT NOT NULL DEFAULT 'pending',
+ verification_submission_id TEXT,
  created_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS messages (
@@ -90,3 +91,5 @@ class Database:
             review_columns = {row[1] for row in conn.execute("PRAGMA table_info(reviews)")}
             if "category" not in review_columns:
                 conn.execute("ALTER TABLE reviews ADD COLUMN category TEXT NOT NULL DEFAULT 'general'")
+            if "verification_submission_id" not in review_columns:
+                conn.execute("ALTER TABLE reviews ADD COLUMN verification_submission_id TEXT")

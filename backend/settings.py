@@ -14,6 +14,7 @@ def env_bool(name: str, default: bool = False) -> bool:
 class Settings:
     secret: str
     database_path: str = "backend/data/antislop.sqlite3"
+    verification_database_path: str = ".antislop/antislop.sqlite3"
     environment: str = "development"
     frontend_url: str = "http://localhost:4173"
     cors_origins: tuple[str, ...] = ("http://localhost:4173",)
@@ -74,6 +75,7 @@ class Settings:
         return cls(
             secret=os.getenv("SECRET_KEY", ""),
             database_path=os.getenv("DATABASE_PATH", "backend/data/antislop.sqlite3"),
+            verification_database_path=os.getenv("VERIFICATION_DATABASE_PATH", ".antislop/antislop.sqlite3"),
             environment=os.getenv("APP_ENV", "development"),
             frontend_url=os.getenv("FRONTEND_URL", "http://localhost:4173").rstrip("/"),
             cors_origins=tuple(x.strip().rstrip("/") for x in os.getenv("CORS_ORIGINS", "http://localhost:4173").split(",") if x.strip()),

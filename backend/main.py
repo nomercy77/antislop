@@ -5,6 +5,7 @@ services fail explicitly. Submitted repositories are never cloned or executed.
 """
 from contextlib import asynccontextmanager
 from datetime import date
+from pathlib import Path
 from typing import Literal
 from urllib.parse import urlencode, urlparse
 import base64
@@ -21,6 +22,12 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+from antislop.models import Capability as VerificationCapability
+from antislop.models import FormalConfiguration, Language as VerificationLanguage, SourceSnapshot, SubmissionCreate
+from antislop.plugins.builtins import built_in_registry
+from antislop.services.planner import VerificationPlanner
+from antislop.services.store import SQLiteSubmissionStore
 
 from .db import Database
 from .categories import TaskCategory, TASK_CATEGORIES
@@ -87,13 +94,16 @@ class DecisionInput(InputModel):
 class ReviewInput(InputModel):
     title: str = Field(min_length=1, max_length=100)
     repo: str = Field(max_length=500)
-    sha: str = Field(pattern=r"^[a-fA-F0-9]{7,40}$")
+    sha: str = Field(pattern=r"^[a-fA-F0-9]{40}$")
     stack: str = Field(min_length=1, max_length=100)
     scope: str = Field(min_length=20, max_length=10000)
     budget: int = Field(ge=1, le=1_000_000, strict=True)
     deadline: date
     visibility: Literal["private", "public"] = "private"
     category: TaskCategory = "general"
+    verification_languages: set[VerificationLanguage] = Field(default_factory=set)
+    verification_capabilities: set[VerificationCapability] = Field(default_factory=set)
+    formal: FormalConfiguration | None = None
 
     @field_validator("repo")
     @classmethod
@@ -134,6 +144,7 @@ def public_review(row) -> dict:
         **{key: row[key] for key in ("id", "owner_id", "title", "repo", "sha", "stack", "scope", "budget", "deadline", "visibility", "category", "status", "created_at")},
         "access": row["platform_access"], "expertId": row["reviewer_id"],
         "expertAccess": row["reviewer_access"], "findings": [], "proposals": [], "messages": [],
+        "verificationSubmissionId": row["verification_submission_id"],
     }
 
 
@@ -158,6 +169,8 @@ def create_app(settings: Settings | None = None, *, mailer=None) -> FastAPI:
         application.state.settings = s
         application.state.db = Database(s.database_path)
         application.state.db.initialize()
+        application.state.verification_store = SQLiteSubmissionStore(Path(s.verification_database_path))
+        application.state.verification_planner = VerificationPlanner(built_in_registry())
         application.state.mailer = mailer or SMTPMailer(s)
         yield
 
@@ -472,13 +485,52 @@ def create_app(settings: Settings | None = None, *, mailer=None) -> FastAPI:
     def create_review(body: ReviewInput, request: Request, user=Depends(current_user)):
         require_role(user, "submitter")
         rid, timestamp = identifier(), now()
+        languages = body.verification_languages or (
+            {VerificationLanguage.PYTHON} if "python" in body.stack.lower() else {VerificationLanguage.JAVASCRIPT}
+        )
+        capabilities = body.verification_capabilities or {
+            VerificationCapability.SYNTAX,
+            VerificationCapability.STATIC_ANALYSIS,
+            VerificationCapability.AST_CFG,
+            VerificationCapability.FORMAL_TYPE_SAFETY,
+        }
+        try:
+            verification_request = SubmissionCreate(
+                source=SourceSnapshot(repository_url=body.repo, commit_sha=body.sha),
+                languages=languages,
+                capabilities=capabilities,
+                intended_behavior=body.scope,
+                formal=body.formal,
+            )
+            plan = request.app.state.verification_planner.create_plan(verification_request)
+            submission = request.app.state.verification_store.create(verification_request, plan)
+            queued = request.app.state.verification_store.queue(submission.id)
+            if queued is None:  # pragma: no cover - defensive store boundary.
+                raise RuntimeError("verification submission could not be queued")
+        except ValueError as error:
+            raise HTTPException(422, f"Invalid verification request: {error}") from error
         with request.app.state.db.connection(write=True) as conn:
             rate_limit(conn, "review-user", user["id"], 30, 3600, timestamp)
             record_rate(conn, "review-user", user["id"], timestamp)
-            conn.execute("INSERT INTO reviews(id,owner_id,title,repo,sha,stack,scope,budget,deadline,visibility,category,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", (rid, user["id"], body.title, body.repo, body.sha, body.stack, body.scope, body.budget, body.deadline.isoformat(), body.visibility, body.category, timestamp))
-            event(conn, user, "Review created. Repository access remains unverified.", rid)
+            conn.execute("INSERT INTO reviews(id,owner_id,title,repo,sha,stack,scope,budget,deadline,visibility,category,verification_submission_id,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)", (rid, user["id"], body.title, body.repo, body.sha, body.stack, body.scope, body.budget, body.deadline.isoformat(), body.visibility, body.category, str(submission.id), timestamp))
+            event(conn, user, "Review created and verification plan queued.", rid)
             row = conn.execute("SELECT * FROM reviews WHERE id=?", (rid,)).fetchone()
-        return {"review": public_review(row)}
+        return {"review": public_review(row), "verification": queued[0], "job": queued[1]}
+
+    @application.get("/api/reviews/{rid}/verification")
+    def review_verification(rid: str, request: Request, user=Depends(current_user)):
+        with request.app.state.db.connection() as conn:
+            review = review_for(conn, rid, user)
+        submission_id = review["verification_submission_id"]
+        if not submission_id:
+            raise HTTPException(404, "No verification plan exists for this review.")
+        try:
+            submission = request.app.state.verification_store.get(uuid.UUID(submission_id))
+        except ValueError as error:
+            raise HTTPException(500, "Stored verification submission id is invalid.") from error
+        if submission is None:
+            raise HTTPException(404, "Verification plan is unavailable.")
+        return {"submission": submission}
 
     @application.get("/api/reviews")
     def list_reviews(request: Request, category: TaskCategory | None = Query(None), user=Depends(current_user)):

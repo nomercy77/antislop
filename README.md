@@ -134,6 +134,20 @@ antislop-worker
 
 Local state is stored in `.antislop/antislop.sqlite3`; per-run logs and artifacts are stored in `.antislop/artifacts/`.
 
+## Workspace UI: submit to verification
+
+The merged workspace UI provides submitter, coder/doer, and verification-staff workspaces with server-enforced sessions and role permissions. In live mode, a submitter supplies a GitHub URL, a **full 40-character commit SHA**, stack, scope, and a verification level. Creating the review persists the marketplace record **and queues an antislop verification plan** against the same immutable source snapshot.
+
+Run the workspace API and static UI separately:
+
+```bash
+python -m pip install -r requirements.txt
+python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+npm run dev
+```
+
+Set `apiBaseUrl` in `dist/config.js` to `http://127.0.0.1:8000`, configure `.env` from `.env.example`, then run `antislop-worker --database-path .antislop/antislop.sqlite3`. The review detail page shows the queued plan and assurance claims; the authenticated API exposes the complete evidence at `GET /api/reviews/{review_id}/verification` to the submitter or assigned approved reviewer.
+
 ## Submit and queue a verification plan
 
 Create a submission against a pinned commit. Replace the SHA and repository with the change you want to verify.

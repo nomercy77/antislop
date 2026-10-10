@@ -1,7 +1,7 @@
 {
   "targets": [
     {
-      "module": "math_utils",
+      "module": "examples.theorem_sample_repo.math_utils",
       "function": "square",
       "cases": [
         {"args": [-2], "expected": 4},

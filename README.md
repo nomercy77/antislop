@@ -58,7 +58,7 @@ Set `formal.theorem_path` to the repository-relative theorem file. A minimal sub
 }
 ```
 
-See the runnable [sample repository](examples/theorem-repo) and its [theorem file](examples/theorem-repo/.antislop/theorems.json). The optional `source` field identifies the documented implementation, but this first engine does **not** translate arbitrary Python into Z3 or prove code/spec equivalence. A pass proves precisely the submitted integer theorem—not the correctness of unrelated implementation code.
+See the runnable [sample repository](examples/theorem_sample_repo) and its [theorem file](examples/theorem_sample_repo/.antislop/theorems.json). The optional `source` field identifies the documented implementation, but this first engine does **not** translate arbitrary Python into Z3 or prove code/spec equivalence. A pass proves precisely the submitted integer theorem—not the correctness of unrelated implementation code.
 
 ## Agent review provider
 

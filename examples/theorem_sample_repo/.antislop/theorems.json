@@ -2,7 +2,7 @@
   "theorems": [
     {
       "id": "square_is_nonnegative",
-      "source": {"path": "math_utils.py", "symbol": "square"},
+      "source": {"path": "examples/theorem_sample_repo/math_utils.py", "symbol": "square"},
       "variables": {"value": "int"},
       "assumptions": [],
       "conclusion": {
@@ -13,7 +13,7 @@
     },
     {
       "id": "adding_zero_is_identity",
-      "source": {"path": "math_utils.py", "symbol": "square"},
+      "source": {"path": "examples/theorem_sample_repo/math_utils.py", "symbol": "square"},
       "variables": {"value": "int"},
       "assumptions": [],
       "conclusion": {

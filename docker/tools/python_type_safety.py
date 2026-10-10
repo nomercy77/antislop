@@ -11,7 +11,14 @@ PATTERN = re.compile(
     r"^(?P<path>.+?):(?P<line>\d+)(?::\d+)?: error: (?P<message>.+?)(?: \[(?P<code>[^\]]+)\])?$"
 )
 stdout, stderr, exit_status = api.run(
-    ["--show-error-codes", "--no-error-summary", "--hide-error-context", "--check-untyped-defs", "."]
+    [
+        "--show-error-codes",
+        "--no-error-summary",
+        "--hide-error-context",
+        "--check-untyped-defs",
+        "--explicit-package-bases",
+        ".",
+    ]
 )
 findings = []
 for line in stdout.splitlines():

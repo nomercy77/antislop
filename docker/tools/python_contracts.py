@@ -5,9 +5,13 @@ import importlib
 import itertools
 import json
 from pathlib import Path
+import sys
 from typing import Any
 
 from python.common import write_findings
+
+
+sys.path.insert(0, str(Path.cwd()))
 
 
 def expand_cases(target: dict[str, Any], max_cases: int) -> list[dict[str, Any]]:

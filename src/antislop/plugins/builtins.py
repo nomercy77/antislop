@@ -1,6 +1,7 @@
 """The initial capability catalog. Plugins are descriptors until workers are added."""
 
 from antislop.models import Capability, Language, PluginManifest
+from antislop.models import PluginState
 from antislop.plugins.registry import PluginRegistry
 
 
@@ -15,6 +16,7 @@ def built_in_registry() -> PluginRegistry:
             version="0.1.0",
             languages=ALL_LANGUAGES,
             capabilities={Capability.SYNTAX},
+            state=PluginState.READY,
         )
     )
     registry.register(
@@ -23,6 +25,7 @@ def built_in_registry() -> PluginRegistry:
             version="0.1.0",
             languages=ALL_LANGUAGES,
             capabilities={Capability.TESTS},
+            state=PluginState.READY,
         )
     )
     registry.register(
@@ -31,6 +34,7 @@ def built_in_registry() -> PluginRegistry:
             version="0.1.0",
             languages=ALL_LANGUAGES,
             capabilities={Capability.STATIC_ANALYSIS},
+            state=PluginState.READY,
         )
     )
     registry.register(
@@ -39,6 +43,7 @@ def built_in_registry() -> PluginRegistry:
             version="0.1.0",
             languages=ALL_LANGUAGES,
             capabilities={Capability.AST_CFG},
+            state=PluginState.READY,
         )
     )
     registry.register(
@@ -51,9 +56,10 @@ def built_in_registry() -> PluginRegistry:
                 Capability.FORMAL_BOUNDED,
                 Capability.FORMAL_CONTRACTS,
             },
+            state=PluginState.READY,
             config_schema={
-                "bounds": "required for formal.bounded; recorded with all formal runs",
-                "assumptions": "optional list of explicit assumptions",
+                "formal.contract_path": "repository-relative JSON contract file",
+                "formal.max_cases": "maximum generated or explicit cases to execute",
             },
         )
     )
@@ -63,6 +69,10 @@ def built_in_registry() -> PluginRegistry:
             version="0.1.0",
             languages=ALL_LANGUAGES,
             capabilities={Capability.AGENT_REVIEW},
+            state=PluginState.READY,
+            config_schema={
+                "provider": "configured trusted agent-review provider",
+            },
         )
     )
     return registry

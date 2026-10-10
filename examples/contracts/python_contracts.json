@@ -1,0 +1,15 @@
+{
+  "targets": [
+    {
+      "module": "examples.contracts.python_math",
+      "function": "add",
+      "parameters": [
+        {"values": [0, 1, 2]},
+        {"values": [0, 1, 2]}
+      ],
+      "cases": [
+        {"args": [2, 3], "expected": 5}
+      ]
+    }
+  ]
+}

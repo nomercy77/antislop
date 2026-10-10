@@ -27,14 +27,39 @@ class Capability(StrEnum):
     AGENT_REVIEW = "agent-review"
 
 
+class FindingSeverity(StrEnum):
+    INFO = "info"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
 class SubmissionStatus(StrEnum):
     PLANNED = "planned"
     QUEUED = "queued"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
 
 
 class PluginRunStatus(StrEnum):
     PLANNED = "planned"
     QUEUED = "queued"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+
+
+class PluginState(StrEnum):
+    READY = "ready"
+    PLANNED = "planned"
+
+
+class JobStatus(StrEnum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
 
 
 class SourceSnapshot(BaseModel):
@@ -59,8 +84,8 @@ class SourceSnapshot(BaseModel):
     @field_validator("commit_sha")
     @classmethod
     def require_commit_sha(cls, value: str) -> str:
-        if not re.fullmatch(r"[0-9a-fA-F]{7,64}", value):
-            raise ValueError("commit_sha must be a 7-64 character hexadecimal commit identifier")
+        if not re.fullmatch(r"(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})", value):
+            raise ValueError("commit_sha must be a full 40- or 64-character hexadecimal commit identifier")
         return value.lower()
 
 
@@ -72,6 +97,7 @@ class SubmissionCreate(BaseModel):
     build_commands: list[str] = Field(default_factory=list)
     test_commands: list[str] = Field(default_factory=list)
     intended_behavior: str | None = Field(default=None, max_length=4_000)
+    formal: "FormalConfiguration | None" = None
 
     @field_validator("paths_in_scope")
     @classmethod
@@ -85,7 +111,24 @@ class SubmissionCreate(BaseModel):
     def require_tests_for_test_capability(self) -> "SubmissionCreate":
         if Capability.TESTS in self.capabilities and not self.test_commands:
             raise ValueError("test_commands are required when the tests capability is selected")
+        formal_capabilities = {Capability.FORMAL_BOUNDED, Capability.FORMAL_CONTRACTS}
+        if self.capabilities & formal_capabilities and self.formal is None:
+            raise ValueError("formal configuration is required for bounded and contract verification")
         return self
+
+
+class FormalConfiguration(BaseModel):
+    """A restricted, JSON-only runtime-contract specification for the first release."""
+
+    contract_path: str = ".antislop/contracts.json"
+    max_cases: int = Field(default=100, ge=1, le=10_000)
+
+    @field_validator("contract_path")
+    @classmethod
+    def require_relative_contract_path(cls, value: str) -> str:
+        if value.startswith("/") or ".." in value.split("/"):
+            raise ValueError("contract_path must be relative and cannot contain '..'")
+        return value
 
 
 class ExecutionPolicy(BaseModel):
@@ -103,7 +146,27 @@ class PluginManifest(BaseModel):
     version: str
     languages: set[Language]
     capabilities: set[Capability]
+    state: PluginState = PluginState.PLANNED
     config_schema: dict[str, object] = Field(default_factory=dict)
+
+
+class Finding(BaseModel):
+    rule_id: str
+    message: str
+    severity: FindingSeverity = FindingSeverity.MEDIUM
+    path: str | None = None
+    line: int | None = Field(default=None, ge=1)
+    evidence: str | None = None
+
+
+class RunEvidence(BaseModel):
+    command: list[str]
+    exit_code: int | None = None
+    log_path: str | None = None
+    output_tail: str = ""
+    findings: list[Finding] = Field(default_factory=list)
+    started_at: datetime
+    finished_at: datetime
 
 
 class PluginRun(BaseModel):
@@ -114,6 +177,7 @@ class PluginRun(BaseModel):
     capability: Capability
     status: PluginRunStatus = PluginRunStatus.PLANNED
     policy: ExecutionPolicy
+    evidence: RunEvidence | None = None
 
 
 class VerificationPlan(BaseModel):
@@ -129,3 +193,18 @@ class Submission(BaseModel):
     plan: VerificationPlan
     status: SubmissionStatus = SubmissionStatus.PLANNED
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class VerificationJob(BaseModel):
+    id: UUID = Field(default_factory=uuid4)
+    submission_id: UUID
+    status: JobStatus = JobStatus.QUEUED
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    error: str | None = None
+
+
+class QueueSubmissionResponse(BaseModel):
+    submission: Submission
+    job: VerificationJob

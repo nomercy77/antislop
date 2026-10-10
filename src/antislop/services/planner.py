@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
-from antislop.models import ExecutionPolicy, PluginRun, SubmissionCreate, VerificationPlan
+from antislop.models import ExecutionPolicy, PluginRun, PluginState, SubmissionCreate, VerificationPlan
 from antislop.plugins.registry import PluginRegistry
 
 
 class UnsupportedCapabilityError(ValueError):
+    pass
+
+
+class PluginNotReadyError(ValueError):
     pass
 
 
@@ -23,6 +27,10 @@ class VerificationPlanner:
                 if plugin is None:
                     raise UnsupportedCapabilityError(
                         f"no plugin supports capability '{capability}' for language '{language}'"
+                    )
+                if plugin.state is not PluginState.READY:
+                    raise PluginNotReadyError(
+                        f"capability '{capability}' is planned but has no executable plugin yet"
                     )
                 runs.append(
                     PluginRun(

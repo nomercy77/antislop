@@ -32,6 +32,44 @@ Agent-written code changes the review bottleneck: generating a patch is cheap, b
 
 Every run exposes an explicit `claim` with a level and status—not a generic green check. For example: `syntax-valid/satisfied`, `runtime-contract-held/counterexample`, or `theorem-proved/proved`. `formal.bounded` and `formal.contracts` remain runtime checks—not proofs. The theorem preview can link a narrow Python expression subset, but it does not prove arbitrary Python programs correct.
 
+## End-to-end assurance showcase
+
+The included `square()` sample exercises the complete path against an immutable GitHub commit: plan → queue → restricted checkout → Docker runner → evidence attestation. It produces two distinct, intentionally non-interchangeable outcomes:
+
+| Check | Claim emitted | Evidence retained |
+| --- | --- | --- |
+| Executable contract cases | `runtime-contract-held/satisfied` | `findings.json`, container log, contract configuration, attestation hashes |
+| Source-linked Z3 theorem | `theorem-proved/proved` | `proofs.json`, `findings.json`, container log, linked-source result, attestation hashes |
+
+An API consumer receives the claim and evidence together:
+
+```json
+{
+  "capability": "formal.theorem-proving",
+  "status": "succeeded",
+  "claim": {
+    "level": "theorem-proved",
+    "status": "proved",
+    "summary": "Restricted integer theorem was proved."
+  },
+  "evidence": {
+    "runner_image": "antislop-runner-python:0.1.0",
+    "attestation": {
+      "source_commit_sha": "<full SHA>",
+      "plugin_id": "builtin.theorem-proving",
+      "artifact_sha256": {
+        "container.log": "<sha256>",
+        "findings.json": "<sha256>",
+        "proofs.json": "<sha256>"
+      },
+      "integrity_sha256": "<sha256>"
+    }
+  }
+}
+```
+
+The same design fails informatively: a broken runtime assertion becomes `runtime-contract-held/counterexample` and retains replayable arguments; a satisfiable negated theorem becomes `theorem-proved/counterexample` and retains the solver model. A timeout, malformed artifact, unavailable runner, or nonzero plugin exit becomes `failed`—never an optimistic assurance claim.
+
 ## System design
 
 ```text
@@ -106,7 +144,7 @@ curl --request POST http://127.0.0.1:8000/v1/submissions \
   --data '{
     "source": {
       "repository_url": "https://github.com/nomercy77/antislop",
-      "commit_sha": "165387bccb83e23f9c80bf6ebe26a363dc93d3dd"
+      "commit_sha": "d394b2c9c57b61d6e8eba59e1a2f5de399bbbbf7"
     },
     "languages": ["python"],
     "capabilities": ["static-analysis", "ast-cfg", "formal.contracts", "formal.theorem-proving"],

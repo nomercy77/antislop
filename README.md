@@ -72,7 +72,7 @@ This changes the human task from “read everything and rediscover obvious failu
 
 ### Committed verification evidence
 
-The curated [verification showcase artifacts](artifacts/verification-showcase) make the technical claims inspectable in the repository. They include the normalized Z3 proof output for the source-linked `square()` example, its empty findings set, runner output, and the completed backend/core/UI test summary. The bundle intentionally excludes temporary queues, local user data, credentials, and exploratory failures; it is a compact review artifact, not a production evidence store.
+The curated [verification showcase artifacts](artifacts/verification-showcase) make the technical claims inspectable in the repository. They include the normalized Z3 proof output for the source-linked `square()` example, successful Python runtime-contract and JavaScript bounded-contract findings, runner output, and the completed backend/core/UI test summary. Empty contract findings mean the declared cases held; they are explicitly documented as finite runtime evidence rather than a universal proof. The bundle intentionally excludes temporary queues, local user data, credentials, and exploratory failures; it is a compact review artifact, not a production evidence store.
 
 ## What is shipped
 

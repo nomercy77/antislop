@@ -10,6 +10,28 @@
     "findings": 0,
     "artifacts": ["proofs.json", "findings.json", "theorem.log"]
   },
+  "runtime_contract_checks": [
+    {
+      "capability": "formal.contracts",
+      "language": "python",
+      "source": "examples/theorem_sample_repo/.antislop/contracts.json",
+      "mode": "contracts",
+      "max_cases": 100,
+      "result": "satisfied",
+      "findings": 0,
+      "artifact": "python-formal-contracts-findings.json"
+    },
+    {
+      "capability": "formal.bounded",
+      "language": "javascript",
+      "source": "examples/contracts/javascript_contracts.json",
+      "mode": "bounded",
+      "max_cases": 100,
+      "result": "satisfied",
+      "findings": 0,
+      "artifact": "javascript-bounded-contracts-findings.json"
+    }
+  ],
   "application_checks": [
     {
       "command": "PYTHONPATH=src .venv/bin/python -m pytest backend/tests -q",

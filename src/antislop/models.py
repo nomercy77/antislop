@@ -51,6 +51,27 @@ class PluginRunStatus(StrEnum):
     FAILED = "failed"
 
 
+class AssuranceLevel(StrEnum):
+    SYNTAX_VALID = "syntax-valid"
+    TESTS_PASSED = "tests-passed"
+    ANALYSIS_COMPLETED = "analysis-completed"
+    TYPE_SAFETY_CHECKED = "type-safety-checked"
+    BOUNDED_CONTRACT_HELD = "bounded-contract-held"
+    RUNTIME_CONTRACT_HELD = "runtime-contract-held"
+    THEOREM_PROVED = "theorem-proved"
+    AGENT_REVIEW_COMPLETED = "agent-review-completed"
+
+
+class AssuranceStatus(StrEnum):
+    NOT_RUN = "not-run"
+    SATISFIED = "satisfied"
+    FINDINGS = "findings"
+    COUNTEREXAMPLE = "counterexample"
+    PROVED = "proved"
+    INCONCLUSIVE = "inconclusive"
+    FAILED = "failed"
+
+
 class PluginState(StrEnum):
     READY = "ready"
     PLANNED = "planned"
@@ -178,8 +199,34 @@ class RunEvidence(BaseModel):
     log_path: str | None = None
     output_tail: str = ""
     findings: list[Finding] = Field(default_factory=list)
+    runner_image: str | None = None
+    runner_image_id: str | None = None
+    attestation: "EvidenceAttestation | None" = None
     started_at: datetime
     finished_at: datetime
+
+
+class EvidenceAttestation(BaseModel):
+    """Hashes that bind evidence to its source, policy, runner, and artifacts."""
+
+    schema_version: str = "v1"
+    source_commit_sha: str
+    plugin_id: str
+    plugin_version: str
+    command_sha256: str
+    policy_sha256: str
+    verification_config_sha256: str
+    findings_sha256: str
+    artifact_sha256: dict[str, str] = Field(default_factory=dict)
+    runner_image: str | None = None
+    runner_image_id: str | None = None
+    integrity_sha256: str
+
+
+class AssuranceClaim(BaseModel):
+    level: AssuranceLevel
+    status: AssuranceStatus = AssuranceStatus.NOT_RUN
+    summary: str
 
 
 class PluginRun(BaseModel):
@@ -190,6 +237,7 @@ class PluginRun(BaseModel):
     capability: Capability
     status: PluginRunStatus = PluginRunStatus.PLANNED
     policy: ExecutionPolicy
+    claim: AssuranceClaim | None = None
     evidence: RunEvidence | None = None
 
 

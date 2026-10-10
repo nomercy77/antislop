@@ -1,13 +1,14 @@
 """Prove a deliberately small, auditable integer-theorem DSL with Z3.
 
-This does not execute or translate arbitrary Python.  A proven result means the
-declarative statement in the submitted theorem file follows in integer
-arithmetic; ``source`` is traceability metadata only.
+When a theorem includes ``source``, this tool links a single-return-expression
+Python function to the theorem's ``result`` variable. Unsupported source is
+rejected rather than treated as linked.
 """
 
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 from functools import reduce
 from operator import mul
@@ -16,7 +17,7 @@ from typing import Any
 
 import z3
 
-from python.common import write_findings
+from python.common import ARTIFACTS, write_findings
 
 
 class SpecificationError(ValueError):
@@ -63,7 +64,46 @@ def proposition(node: Any, variables: dict[str, z3.ArithRef]) -> z3.BoolRef:
     raise SpecificationError("invalid proposition")
 
 
-def prove(theorem: dict[str, Any]) -> tuple[str, str]:
+def source_expression(source: Any, variables: dict[str, z3.ArithRef]) -> z3.ArithRef:
+    if not isinstance(source, dict) or set(source) != {"path", "symbol"}:
+        raise SpecificationError("source must contain exactly relative path and function symbol")
+    path, symbol = source["path"], source["symbol"]
+    if not isinstance(path, str) or path.startswith("/") or ".." in path.split("/"):
+        raise SpecificationError("source path must be relative and cannot contain '..'")
+    if not isinstance(symbol, str) or not symbol.isidentifier():
+        raise SpecificationError("source symbol must be a Python identifier")
+    try:
+        module = ast.parse(Path(path).read_text(encoding="utf-8"), filename=path)
+    except (OSError, SyntaxError) as error:
+        raise SpecificationError(f"unable to parse linked source: {error}") from error
+    function = next((node for node in module.body if isinstance(node, ast.FunctionDef) and node.name == symbol), None)
+    if function is None:
+        raise SpecificationError(f"linked function not found: {path}:{symbol}")
+    body = [node for node in function.body if not isinstance(node, ast.Expr) or not isinstance(node.value, ast.Constant) or not isinstance(node.value.value, str)]
+    if function.args.vararg or function.args.kwarg or function.args.defaults or function.args.kwonlyargs or len(body) != 1 or not isinstance(body[0], ast.Return):
+        raise SpecificationError("linked function must have positional parameters and one return expression")
+    parameters = [argument.arg for argument in function.args.args]
+    if set(parameters) != set(variables):
+        raise SpecificationError("linked function parameters must match theorem variables")
+
+    def translate(node: ast.expr) -> z3.ArithRef:
+        if isinstance(node, ast.Name) and node.id in variables:
+            return variables[node.id]
+        if isinstance(node, ast.Constant) and isinstance(node.value, int) and not isinstance(node.value, bool):
+            return z3.IntVal(node.value)
+        if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Sub, ast.Mult)):
+            left, right = translate(node.left), translate(node.right)
+            return left + right if isinstance(node.op, ast.Add) else left - right if isinstance(node.op, ast.Sub) else left * right
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
+            return -translate(node.operand)
+        raise SpecificationError("linked return expression supports only integer constants, parameters, +, -, *, and unary -")
+
+    if body[0].value is None:
+        raise SpecificationError("linked function must return an integer expression")
+    return translate(body[0].value)
+
+
+def prove(theorem: dict[str, Any]) -> tuple[str, str, dict[str, Any]]:
     identifier = theorem.get("id")
     variable_types = theorem.get("variables")
     assumptions = theorem.get("assumptions", [])
@@ -76,15 +116,20 @@ def prove(theorem: dict[str, Any]) -> tuple[str, str]:
     if not isinstance(assumptions, list):
         raise SpecificationError(f"{identifier}: assumptions must be a list")
     variables = {name: z3.Int(name) for name in variable_types}
+    linked = "source" in theorem
+    if linked:
+        variables["result"] = source_expression(theorem["source"], variables)
     solver = z3.Solver()
     solver.add(*(proposition(item, variables) for item in assumptions))
     solver.add(z3.Not(proposition(theorem.get("conclusion"), variables)))
     result = solver.check()
     if result == z3.unsat:
-        return "proved", f"{identifier}: proved over unbounded mathematical integers"
+        suffix = " with linked source expression" if linked else ""
+        return "proved", f"{identifier}: proved over unbounded mathematical integers{suffix}", {"linked_source": linked}
     if result == z3.sat:
-        return "counterexample", f"{identifier}: counterexample {solver.model()}"
-    return "unknown", f"{identifier}: solver returned unknown: {solver.reason_unknown()}"
+        model = {name: str(solver.model().eval(value, model_completion=True)) for name, value in variables.items() if name != "result"}
+        return "counterexample", f"{identifier}: counterexample {model}", {"linked_source": linked, "counterexample": model}
+    return "unknown", f"{identifier}: solver returned unknown: {solver.reason_unknown()}", {"linked_source": linked, "reason": solver.reason_unknown()}
 
 
 parser = argparse.ArgumentParser()
@@ -102,20 +147,25 @@ except (OSError, json.JSONDecodeError, KeyError, SpecificationError) as error:
     raise SystemExit(2)
 
 findings: list[dict[str, str]] = []
+proofs: list[dict[str, Any]] = []
 for theorem in theorems:
     try:
         if not isinstance(theorem, dict):
             raise SpecificationError("each theorem must be an object")
-        status, message = prove(theorem)
+        status, message, detail = prove(theorem)
         print(message)
+        proofs.append({"id": theorem.get("id"), "status": status, "message": message, **detail})
         if status != "proved":
             findings.append({
                 "rule_id": f"theorem.{status}",
                 "message": message,
                 "severity": "high",
-                "evidence": json.dumps(theorem, sort_keys=True),
+                "evidence": json.dumps({"theorem": theorem, **detail}, sort_keys=True),
             })
     except SpecificationError as error:
+        proofs.append({"id": theorem.get("id") if isinstance(theorem, dict) else None, "status": "invalid", "message": str(error)})
         findings.append({"rule_id": "theorem.invalid-specification", "message": str(error), "severity": "high"})
 
 write_findings(findings)
+ARTIFACTS.mkdir(parents=True, exist_ok=True)
+(ARTIFACTS / "proofs.json").write_text(json.dumps(proofs, indent=2, sort_keys=True), encoding="utf-8")

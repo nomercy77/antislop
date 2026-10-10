@@ -7,19 +7,19 @@
       "assumptions": [],
       "conclusion": {
         "op": "ge",
-        "left": {"op": "mul", "args": [{"var": "value"}, {"var": "value"}]},
+        "left": {"var": "result"},
         "right": {"int": 0}
       }
     },
     {
-      "id": "adding_zero_is_identity",
+      "id": "square_matches_its_specification",
       "source": {"path": "examples/theorem_sample_repo/math_utils.py", "symbol": "square"},
       "variables": {"value": "int"},
       "assumptions": [],
       "conclusion": {
         "op": "eq",
-        "left": {"op": "add", "args": [{"var": "value"}, {"int": 0}]},
-        "right": {"var": "value"}
+        "left": {"var": "result"},
+        "right": {"op": "mul", "args": [{"var": "value"}, {"var": "value"}]}
       }
     }
   ]

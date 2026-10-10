@@ -11,6 +11,8 @@ from antislop.agent_review import AgentReviewError, AgentReviewProvider, HttpAge
 from antislop.models import Capability, PluginRun, PluginRunStatus, RunEvidence
 from antislop.plugins.commands import command_for
 from antislop.sandbox import DockerSandbox, DockerSandboxError
+from antislop.services.assurance import completed_claim
+from antislop.services.attestation import attest
 from antislop.services.store import SQLiteSubmissionStore, SubmissionRepository
 
 
@@ -47,15 +49,30 @@ class VerificationWorker:
                         run_status = (
                             PluginRunStatus.SUCCEEDED if evidence.exit_code == 0 else PluginRunStatus.FAILED
                         )
-                        self._store.update_run(submission.id, run.id, run_status, evidence)
+                        evidence = evidence.model_copy(
+                            update={"attestation": attest(submission.request.source, submission.request, run, evidence)}
+                        )
+                        self._store.update_run(
+                            submission.id, run.id, run_status, evidence, completed_claim(run, evidence, run_status)
+                        )
                         if run_status == PluginRunStatus.FAILED:
                             failures.append(f"{run.capability} failed with exit code {evidence.exit_code}")
                     except (AgentReviewError, DockerSandboxError, OSError, ValueError) as error:
-                        self._store.update_run(submission.id, run.id, PluginRunStatus.FAILED)
+                        self._store.update_run(
+                            submission.id,
+                            run.id,
+                            PluginRunStatus.FAILED,
+                            claim=completed_claim(run, None, PluginRunStatus.FAILED),
+                        )
                         failures.append(f"{run.capability}: {error}")
         except (AgentReviewError, DockerSandboxError, OSError, ValueError) as error:
             for run in submission.plan.runs:
-                self._store.update_run(submission.id, run.id, PluginRunStatus.FAILED)
+                self._store.update_run(
+                    submission.id,
+                    run.id,
+                    PluginRunStatus.FAILED,
+                    claim=completed_claim(run, None, PluginRunStatus.FAILED),
+                )
             failures.append(str(error))
         self._store.complete_job(job.id, "; ".join(failures) if failures else None)
         return True

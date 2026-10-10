@@ -66,9 +66,9 @@ for (const target of document.targets) {
     try {
       const result = fn(...(testCase.args || []));
       const error = assertionError(result, testCase);
-      if (error) findings.push({ rule_id: `contract.${mode}-counterexample`, message: error, severity: "high", evidence: `target=${target.module}.${target.function} case=${index}` });
+      if (error) findings.push({ rule_id: `contract.${mode}-counterexample`, message: error, severity: "high", evidence: JSON.stringify({ target: `${target.module}.${target.function}`, case_index: index, args: testCase.args || [], case: testCase }) });
     } catch (error) {
-      findings.push({ rule_id: `contract.${mode}-counterexample`, message: `raised ${error.name}: ${error.message}`, severity: "high", evidence: `target=${target.module}.${target.function} case=${index}` });
+      findings.push({ rule_id: `contract.${mode}-counterexample`, message: `raised ${error.name}: ${error.message}`, severity: "high", evidence: JSON.stringify({ target: `${target.module}.${target.function}`, case_index: index, args: testCase.args || [], case: testCase }) });
     }
   });
 }

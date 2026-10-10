@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from antislop.models import ExecutionPolicy, PluginRun, PluginState, SubmissionCreate, VerificationPlan
 from antislop.plugins.registry import PluginRegistry
+from antislop.services.assurance import planned_claim
 
 
 class UnsupportedCapabilityError(ValueError):
@@ -39,6 +40,7 @@ class VerificationPlanner:
                         language=language,
                         capability=capability,
                         policy=self._policy.model_copy(deep=True),
+                        claim=planned_claim(capability),
                     )
                 )
         return VerificationPlan(source=request.source, runs=runs)

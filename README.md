@@ -11,7 +11,7 @@ It is built for the uncomfortable gap between “an agent produced code that loo
 Agent-written code changes the review bottleneck: generating a patch is cheap, but establishing confidence in it is not. antislop is designed around a few non-negotiables:
 
 - **Immutable inputs:** every submission names a GitHub URL and a full commit SHA—never a floating branch.
-- **Reproducible evidence:** every capability resolves to a versioned plugin run with its command, logs, findings, and timestamps.
+- **Reproducible evidence:** every completed run has a content-addressed attestation covering its command, policy, selected configuration, findings, runner identity, and emitted artifacts.
 - **Isolation before execution:** the API plans work; a Docker worker runs untrusted repository code outside the API process.
 - **Honest assurance labels:** syntax, static findings, bounded contracts, and theorem proofs are different claims. The result tells you which one you received.
 - **Human/agent continuity:** automated evidence is structured so an expert task or agent review can cite it directly.
@@ -27,10 +27,10 @@ Agent-written code changes the review bottleneck: generating a patch is cheap, b
 | `formal.type-safety` | mypy | TypeScript `allowJs` / `checkJs` | The configured checker completed; type diagnostics are findings, not silently discarded. |
 | `formal.bounded` | Yes | Yes | A finite set of declared/generated contract cases held within the recorded bound. |
 | `formal.contracts` | Yes | Yes | Declared runtime contract cases and assertions held. |
-| `formal.theorem-proving` | Yes (preview) | Not yet | Z3 proved the submitted restricted integer theorem, under its stated assumptions. |
+| `formal.theorem-proving` | Yes (preview) | Not yet | Z3 proved the submitted restricted integer theorem; when source-linked, the function's supported return expression is part of that proof. |
 | `agent-review` | Provider-backed | Provider-backed | A configured trusted service returned structured, evidence-backed findings. |
 
-`formal.bounded` and `formal.contracts` are runtime checks—not proofs. `formal.theorem-proving` is a proof of a deliberately small declarative DSL, not proof that arbitrary Python implementation code equals that specification. Those distinctions are intentional and visible in the result model.
+Every run exposes an explicit `claim` with a level and status—not a generic green check. For example: `syntax-valid/satisfied`, `runtime-contract-held/counterexample`, or `theorem-proved/proved`. `formal.bounded` and `formal.contracts` remain runtime checks—not proofs. The theorem preview can link a narrow Python expression subset, but it does not prove arbitrary Python programs correct.
 
 ## System design
 
@@ -55,6 +55,8 @@ Agent-written code changes the review bottleneck: generating a patch is cheap, b
 
 The API resolves capabilities using plugin manifests (`id`, version, supported languages, configuration schema, state). It does not execute submitted code. The worker fetches the requested SHA once, then invokes the selected language runner once per plugin capability. Findings share a common shape—rule id, severity, message, path, line, and evidence—so an automated report and an expert review can use the same downstream model.
 
+After completion, antislop records an integrity attestation (`schema_version: v1`) containing SHA-256 hashes for the command, execution policy, normalized verification configuration, findings, and every emitted artifact. It also records the source commit, plugin/version, and local runner-image identity. The final `integrity_sha256` hashes that envelope. This is tamper-evident evidence binding, not yet a cryptographic signature or transparency log.
+
 ## Sandbox and evidence model
 
 Verification code executes in Docker with an explicit security posture:
@@ -62,7 +64,7 @@ Verification code executes in Docker with an explicit security posture:
 - Verification containers have **no network**, a **read-only source mount**, a **read-only root filesystem**, no Linux capabilities, `no-new-privileges`, a non-root UID, and bounded CPU, memory, PID, and wall-clock limits.
 - The source checkout is a separate, unprivileged fetch step with only the network access needed to retrieve the already validated GitHub URL and SHA. It receives no credentials. Production deployment should place this behind GitHub-only egress.
 - Runner images are built ahead of time and workers use `--pull never`; repositories cannot install arbitrary dependencies while being verified.
-- Logs and structured `findings.json` artifacts are retained per plugin run. SQLite is the current durable queue for a single worker; the storage interface is intentionally narrow so a production deployment can use Postgres and object storage.
+- Logs and structured `findings.json` artifacts are retained per plugin run. Proof runs also emit `proofs.json`; failed theorem claims retain the solver model. Runtime-contract counterexamples retain the target, case index, arguments, keyword arguments, and assertion case needed to reproduce them. SQLite is the current durable queue for a single worker; the storage interface is intentionally narrow so a production deployment can use Postgres and object storage.
 
 This is a useful trust boundary, not a claim that arbitrary hostile code is risk-free. It is designed to make execution constrained, attributable, and replaceable with stronger isolation as the platform evolves.
 
@@ -122,7 +124,7 @@ The response contains a submission UUID and the planned plugin runs. Queue it wi
 curl --request POST http://127.0.0.1:8000/v1/submissions/<submission-id>/queue
 ```
 
-Poll the submission to read plugin status, evidence, output tails, log paths, and normalized findings:
+Poll the submission to read plugin status, explicit assurance claim, evidence, output tails, log paths, normalized findings, and the attestation digest:
 
 ```bash
 curl http://127.0.0.1:8000/v1/submissions/<submission-id>
@@ -170,13 +172,15 @@ For each theorem, antislop asks Z3 whether `assumptions AND NOT(conclusion)` is 
   "assumptions": [],
   "conclusion": {
     "op": "ge",
-    "left": {"op": "mul", "args": [{"var": "value"}, {"var": "value"}]},
+    "left": {"var": "result"},
     "right": {"int": 0}
   }
 }
 ```
 
-The `source` field is traceability metadata in this preview. The solver proves the declarative theorem; it does **not** derive the formula from, or establish equivalence with, arbitrary Python source. That is the next formal-methods boundary to cross, and it should only be claimed once there is a restricted program semantics or proof-producing translation. The full runnable example is in [examples/theorem_sample_repo](examples/theorem_sample_repo).
+When `source` is present, the preview links its `result` variable to a Python function only if the function has positional parameters matching the theorem variables and a single return expression made from integer constants, parameters, `+`, `-`, `*`, and unary `-`. Unsupported code is rejected as unlinked—not waved through. The sample's `square()` proof therefore establishes both that its supported return expression is `value * value` and that the returned result is non-negative over mathematical integers.
+
+This is still not arbitrary-program verification: control flow, heap state, imports, exceptions, Python integer coercions, and behavior outside the restricted expression subset are not modeled. Counterexamples are saved in `proofs.json` with the exact model; contract counterexamples include executable input data in their finding evidence. The full runnable example is in [examples/theorem_sample_repo](examples/theorem_sample_repo).
 
 ## Agent review boundary
 
@@ -223,7 +227,7 @@ The provider runs outside the untrusted-code Docker sandbox and gets no Docker a
 ## Current limitations and next steps
 
 - JavaScript theorem proving is not implemented; the Z3 theorem plugin currently targets Python submissions only.
-- The theorem DSL proves statements, not arbitrary code/spec equivalence. Future work needs a restricted source subset, symbolic execution, or proof-producing translation before claiming implementation correctness.
+- The theorem linker supports only single-expression integer functions. Future work needs a larger restricted source semantics, symbolic execution, or proof-producing translation before claiming broader implementation correctness.
 - Private repositories, dependency builds, multi-worker queue coordination, GitHub App authentication, Postgres/object storage, and the marketplace UI are not yet included.
 - Static and AST/CFG adapters are intentionally compact built-ins today. The plugin boundary is where richer analyzers, security scanners, fuzzers, model checkers, and expert-authored verification packages attach.
 

@@ -14,6 +14,7 @@ from threading import Lock
 from uuid import UUID
 
 from antislop.models import (
+    AssuranceClaim,
     JobStatus,
     PluginRunStatus,
     RunEvidence,
@@ -48,6 +49,7 @@ class SubmissionRepository(ABC):
         run_id: UUID,
         run_status: PluginRunStatus,
         evidence: RunEvidence | None = None,
+        claim: AssuranceClaim | None = None,
     ) -> Submission | None: ...
 
 
@@ -56,12 +58,16 @@ def _replace_run(
     run_id: UUID,
     run_status: PluginRunStatus,
     evidence: RunEvidence | None,
+    claim: AssuranceClaim | None = None,
 ) -> Submission:
     runs = []
     found = False
     for run in submission.plan.runs:
         if run.id == run_id:
-            runs.append(run.model_copy(update={"status": run_status, "evidence": evidence}))
+            updates = {"status": run_status, "evidence": evidence}
+            if claim is not None:
+                updates["claim"] = claim
+            runs.append(run.model_copy(update=updates))
             found = True
         else:
             runs.append(run)
@@ -149,12 +155,13 @@ class InMemorySubmissionStore(SubmissionRepository):
         run_id: UUID,
         run_status: PluginRunStatus,
         evidence: RunEvidence | None = None,
+        claim: AssuranceClaim | None = None,
     ) -> Submission | None:
         with self._lock:
             submission = self._submissions.get(submission_id)
             if submission is None:
                 return None
-            updated = _replace_run(submission, run_id, run_status, evidence)
+            updated = _replace_run(submission, run_id, run_status, evidence, claim)
             self._submissions[submission_id] = updated
             return updated
 
@@ -317,6 +324,7 @@ class SQLiteSubmissionStore(SubmissionRepository):
         run_id: UUID,
         run_status: PluginRunStatus,
         evidence: RunEvidence | None = None,
+        claim: AssuranceClaim | None = None,
     ) -> Submission | None:
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -328,7 +336,7 @@ class SQLiteSubmissionStore(SubmissionRepository):
                     connection.rollback()
                     return None
                 updated = _replace_run(
-                    Submission.model_validate_json(row["payload"]), run_id, run_status, evidence
+                    Submission.model_validate_json(row["payload"]), run_id, run_status, evidence, claim
                 )
                 connection.execute(
                     "UPDATE submissions SET payload = ? WHERE id = ?",

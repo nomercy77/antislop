@@ -94,7 +94,13 @@ for target in targets:
                     "rule_id": f"contract.{arguments.mode}-counterexample",
                     "message": error,
                     "severity": "high",
-                    "evidence": f"target={target.get('module')}.{target.get('function')} case={index}",
+                    "evidence": json.dumps({
+                        "target": f"{target.get('module')}.{target.get('function')}",
+                        "case_index": index,
+                        "args": case.get("args", []),
+                        "kwargs": case.get("kwargs", {}),
+                        "case": case,
+                    }, sort_keys=True, default=repr),
                 }
             )
 write_findings(findings)

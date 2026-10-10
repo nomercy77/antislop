@@ -107,6 +107,7 @@ class DockerSandbox:
         artifact_directory.mkdir(parents=True, exist_ok=True)
         artifact_directory.chmod(0o777)
         image = self._image_for(run.language)
+        image_id = self._image_id(image)
         completed = self._docker_run(
             [
                 "--network",
@@ -156,6 +157,8 @@ class DockerSandbox:
             log_path=str(log_path),
             output_tail=self._tail(completed.stdout),
             findings=self._read_findings(artifact_directory),
+            runner_image=image,
+            runner_image_id=image_id,
             started_at=started_at,
             finished_at=finished_at,
         )
@@ -206,6 +209,22 @@ class DockerSandbox:
         if language == Language.JAVASCRIPT:
             return self._settings.javascript_image
         raise DockerSandboxError(f"no runner image is configured for '{language}'")
+
+    def _image_id(self, image: str) -> str | None:
+        """Best-effort immutable local image identity; execution need not depend on it."""
+        try:
+            completed = subprocess.run(
+                [self._settings.docker_binary, "image", "inspect", "--format", "{{.Id}}", image],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                timeout=10,
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            return None
+        image_id = completed.stdout.strip()
+        return image_id or None
 
     def _tail(self, output: str) -> str:
         encoded = output.encode("utf-8", errors="replace")

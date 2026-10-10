@@ -31,6 +31,8 @@ def test_submission_creates_a_deterministic_plugin_plan() -> None:
     ]
     assert {run["plugin_id"] for run in body["plan"]["runs"]} == {"builtin.syntax", "builtin.tests"}
     assert all(run["status"] == "planned" for run in body["plan"]["runs"])
+    assert [run["claim"]["status"] for run in body["plan"]["runs"]] == ["not-run", "not-run"]
+    assert [run["claim"]["level"] for run in body["plan"]["runs"]] == ["syntax-valid", "tests-passed"]
 
 
 def test_queued_submission_does_not_execute_in_the_api_process() -> None:

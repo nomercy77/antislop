@@ -44,3 +44,8 @@ def test_agent_review_persists_provider_findings() -> None:
     assert run.status == "succeeded"
     assert run.evidence is not None
     assert run.evidence.findings[0].rule_id == "agent.example"
+    assert run.claim is not None
+    assert run.claim.status == "findings"
+    assert run.evidence.attestation is not None
+    assert run.evidence.attestation.source_commit_sha == "a" * 40
+    assert len(run.evidence.attestation.integrity_sha256) == 64

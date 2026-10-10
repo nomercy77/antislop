@@ -1,0 +1,20 @@
+/* Fixed task categories remain separate from workflow status and stack. */
+.task-category { display:inline-flex; align-items:center; border-radius:5px; padding:4px 8px; background:#f1f5eb; color:#365f48; border:1px solid #c3cfb8; font-size:12px; line-height:1.4; font-weight:600; white-space:normal; }
+.repo-category { display:block; margin-top:7px; }
+.repository-card>.task-category { margin-bottom:10px; }
+.review-meta>.task-category { font-size:12px; color:#365f48; }
+.category-filter { margin:0 0 21px; }
+.category-filter-label { font-size:13px; font-weight:650; margin:0 0 12px; color:#365f48; }
+.category-filter-label small { font-size:13px; font-weight:400; color:#586755; margin-left:9px; }
+.category-chips { display:flex; gap:8px; flex-wrap:wrap; }
+.category-chip { display:inline-flex; align-items:center; gap:9px; min-height:44px; border:1px solid #7a8974; background:#fff; border-radius:8px; padding:9px 11px; font-size:13px; color:#586755; line-height:1.4; transition:background-color .15s,border-color .15s; }
+.category-chip:hover { border-color:#365f48; background:#f4f8ee; }
+.category-chip.active { background:#174c36; border-color:#174c36; color:#fff; }
+.category-chip:focus-visible { outline:3px solid #174c36; outline-offset:3px; box-shadow:0 0 0 2px #fff; }
+.category-count { min-width:20px; padding:2px 4px; text-align:center; border-radius:4px; font-size:12px; background:#f0f4e9; color:#365f48; }
+.category-chip.active .category-count { background:#365f48; color:#fff; }
+@media(max-width:720px) {
+ .category-chips { gap:7px; }
+ .category-filter-label small { display:block; margin:5px 0 0; }
+}
+@media(prefers-reduced-motion:reduce) { .category-chip { transition:none; } }

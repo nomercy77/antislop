@@ -148,6 +148,14 @@ npm run dev
 
 Set `apiBaseUrl` in `dist/config.js` to `http://127.0.0.1:8000`, configure `.env` from `.env.example`, then run `antislop-worker --database-path .antislop/antislop.sqlite3`. The review detail page shows the queued plan and assurance claims; the authenticated API exposes the complete evidence at `GET /api/reviews/{review_id}/verification` to the submitter or assigned approved reviewer.
 
+### Current development backend URLs
+
+- Local API: `http://127.0.0.1:8000`
+- Current Cloudflare development tunnel: `https://ballet-customers-campbell-volvo.trycloudflare.com`
+- Tunnel health check: `https://ballet-customers-campbell-volvo.trycloudflare.com/api/health`
+
+The Cloudflare URL is an account-less quick tunnel for the currently running local process. It changes when the tunnel stops or restarts and is not a production endpoint. Set the frontend API base URL to the tunnel origin only while that process is running; production deployments should use a named tunnel or hosted API with an explicit CORS allowlist.
+
 ### Human expert work, grounded in the automated evidence
 
 When creating a review, a submitter can request an optional human deliverable in addition to the selected automated checks. The API—not the browser—sets the fixed mock price and persists the exact request. Only approved coders can browse these opportunities, be assigned, view the private review, and submit a delivery summary plus an optional HTTPS artifact URL.

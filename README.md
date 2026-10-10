@@ -64,6 +64,12 @@ antislop is not trying to pretend that one tool can “verify code.” It compos
 
 Expert work is tiered, server-priced, and optional: functional tests ($75/$150), formal contracts ($150/$300), and manual review ($100/$250) for standard/deep scope. These are mock commercial terms today—no charge, escrow, or payout is executed—but the authorization and delivery lifecycle is real application state.
 
+### Deterministic proof first; expert judgment where it matters
+
+Antislop is designed to remove the repeatable bulk of review before it reaches an expert. A selected plan deterministically runs the same syntax, static, AST/CFG, type, test, contract, bounded, and supported theorem checks against the same pinned commit. It records the exact plugin version, command policy, configuration, logs, findings, proof artifacts, counterexamples, and integrity hashes. Re-running the same supported plan against the same source is therefore an evidence-producing operation, not a new subjective review.
+
+This changes the human task from “read everything and rediscover obvious failures” to higher-value work: define the right contract, challenge assumptions that the bounded model does not cover, add adversarial functional tests, interpret a solver counterexample, and judge product, security, and operational intent. When a restricted theorem is provable, the expert inherits the proof and its stated assumptions. When it is not, the expert inherits the recorded counterexample or failure evidence. The platform does not replace expert judgment; it gives experts a deterministic evidence base and reserves their time for the ambiguity that tools cannot honestly resolve.
+
 ## What is shipped
 
 | Capability | Python | JavaScript | What a passing result means |
